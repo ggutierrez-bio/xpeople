@@ -1,0 +1,98 @@
+Monolith v0.1a (LGPL3)
+    ggutierrez @ Universitat de Barcelona (2017)
+    Small script suite for file concatenation. Useful for management of
+    thousands (or millions) of files such as our ZINC15 data set.
+    
+    Readme is structured in this sections:
+      · How to install
+      · How to use it (basic)
+      · How to it works (under the hood)
+      
+How to install:
+    Copy/clone monolith dir to an accessible folder.
+    Set an environment var called MONOLITH_HOME with the absolute path of this
+    folder.
+    Add $MONOLITH_HOME/bin to PATH.
+    add execution permission to all files in $MONOLITH_HOME/bin
+    Profit.
+
+    to put it in commands, if you downloaded the zip to ~/Downloads/monolith.zip
+    and want it installed in ~/apps/monolith
+      #!/bin/bash
+      # create ~/apps if it doesn't exist
+      mkdir ~/apps -p
+      # unzip and move
+      cd ~/Downloads
+      unzip monolith.zip
+      mv monolith ~/apps/monolith
+      #set up env vars.
+      export MONOLITH_HOME=~/apps/baker
+      export PATH=$MONOLITH_HOME/bin:$PATH
+      # change execution permissions
+      chmod +x $MONOLITH_HOME/bin/*
+    
+      # optional, add export MONOLITH_HOME and PATH to ~/.bashrc so baker is set up
+      # automatically every time a shell is started
+      echo 'export MONOLITH_HOME=~/apps/baker' >> ~/.bashrc
+      echo 'export PATH=$MONOLITH_HOME/bin/:$PATH' >> ~/.bashrc
+    
+    there are better ways to set up the env vars, like environment-modules
+    config files. I encourage the use of modules, and provide a template for
+    module configuration in $MONOLITH_HOME/extra/
+
+How to use it (basic):
+    There two basic tools monolith_add and monolith_get:
+    
+    monolith_add.sh
+        adds a list of files to a monolithic datafile.
+        usage:
+            monolith_add.sh datafile.dat indexfile.ndx file1 [file2 [file3...]]
+        it will add file1, file2, file3, etc to the datafile datafile.dat and
+        index it in indexfile.ndx
+    
+    monolith_get.sh
+        retrieves a file list from a monolithic datafile
+        usage:
+            monolith_get.sh datafile.dat indexfile.ndx file1 [file2 [file3...]]
+        it will get an indexed file in indexfile.ndx out of datafile.dat
+        currently it only works by name, but it will work by line number, by
+        offset or by checksum (md5).
+
+    Now, a simple example.
+    let foo be a folder with the files a.out, b.lst and c.dat inside.
+    if we wanted to create a compact datafile out of this files we could run
+        cd foo
+        monolith_add foo.dat foo.ndx a.out b.lst c.dat
+    and each file would be added to foo filebase.
+    now we take foo.dat and foo.ndx into bar and run
+        monolith_get foo.dat foo.ndx a.out
+    and the a.out file will be created. if we run it again, a.out wont be overwritten
+
+
+How it works (under the hood):
+    Currently, it only works for bash, but a version for csh wouldn't be hard
+    to create.
+    It uses datafiles and indexes.
+     -What's a datafile?
+    A datafile is just a file with a lot of files concatenated.
+     -So... what are our indices here?
+    Well, an index is a file with containing the information about all files
+    within a datafile that is needed to retrieve them and to be sure that the
+    extracted file is an exact copy of the original one.
+     -Can we see an example, please?
+    Of course we can!
+    let's check the foo example from above.
+    if we read the index file, foo.ndx, it will look something like that
+
+    a.out   0   23434   2966c09d143898cafd94efbd51278798
+    b.lst   23434   10000   a4a410d94e6ce3c1944d76bcaae1b7a2
+    c.dat   33434   52343   8b43dda292ad13353491c713efcfb263
+
+    so it is a list of tab separated fields. the first one is the file name
+    the second one is the byte where the file begins within the datafile, the
+    third is the size of the file in bytes also, and the last one is the
+    md5 checksum of the original file.
+    when we add a file, a new line is created, and when we retrieve a file,
+    there is a search in the index to get the location of the file.
+    once extracted, the checksum for the new file is compared against the
+    original's. if they differ, monolith will warn us.
